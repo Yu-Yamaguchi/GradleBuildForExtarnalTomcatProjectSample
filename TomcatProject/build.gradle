@@ -3,16 +3,23 @@
  可能な限りTomcatプロジェクト内にファイルを追加することなく、外部からGradleによってビルドを行い、
  その結果をレポート出力するサンプルです。
 */
+apply plugin: 'java'
 apply plugin: 'war'
 apply plugin: 'groovy'
 apply plugin: 'findbugs'
+apply plugin: 'jacoco'
 
 // Javaのバージョンを指定
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
 
+// 文字エンコーディングの設定
+def defaultEncoding = 'UTF-8'
+tasks.withType(AbstractCompile).each { it.options.encoding = defaultEncoding }
+tasks.withType(GroovyCompile).each { it.groovyOptions.encoding = defaultEncoding }
+
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 // 独自変数の定義
@@ -46,10 +53,7 @@ sourceSets {
     }
 }
 
-// 文字エンコーディングの設定
-def defaultEncoding = 'UTF-8'
-tasks.withType(AbstractCompile).each { it.options.encoding = defaultEncoding }
-tasks.withType(GroovyCompile).each { it.groovyOptions.encoding = defaultEncoding }
+
 
 /****** findbugsの設定 ******/
 // レポートの出力形式をHTMLに変更
@@ -69,10 +73,43 @@ findbugs {
     reportLevel = "high"
 }
 
+/****** 自作のタスク ******/
 // テストクラスでは、@SuiteClassesを指定して、まとめてテストを実行可能としています。
 // そのため、全クラスのテスト実行ではなく、特定のTest Suiteのみを実行するよう自作のタスクを作成します。
 task testAllTests(type: Test) {
     include '**/AllTests.class'
-    reports.junitXml.destination "$buildDir/test-results/AllTests"
-    reports.html.destination = "$buildDir/reports/AllTests"
+    reports.junitXml.destination "$buildDir/test-results/testAllTests"
+    reports.html.destination = "$buildDir/reports/testAllTests"
+}
+
+/****** jacocoによるカバレッジレポート出力の設定 ******/
+// jacocoの設定
+jacoco {
+    toolVersion = "0.7.+"
+    reportsDir = file("$buildDir/reports/jacoco")
+}
+
+// jacocoタスクが実行された際、先行タスクとしてtestAllTestsが実行されるよう設定。
+task jacoco(type: JacocoReport, dependsOn: 'testAllTests') {
+    /*
+     jacocoのカバレッジレポート出力に必要な「***.exec」ファイルは、
+     デフォルトのままだと「test.exec」という名前のファイルとなり、
+     dependsOnで指定したタスクが「test」以外の場合、タスク名＋.execファイルが生成されるため、
+     jacocoのカバレッジレポートが出力されない。
+     
+     この例だと「testAllTests.exec」ファイルができてしまう。
+     そのため、executionDataを以下のようにセットする。
+     ※さらに、executionDataはFileオブジェクトではなくFileCollectionオブジェクトのため、
+     　filesでパスを指定する。
+    */
+    executionData = files("$buildDir/jacoco/testAllTests.exec")
+
+    sourceSets sourceSets.main
+    
+    // HTMLのレポートのみ出力
+    reports {
+        html.enabled = true
+        xml.enabled = false
+        csv.enabled = false
+    }
 }
