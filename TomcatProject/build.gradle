@@ -23,12 +23,6 @@ repositories {
     mavenCentral()
 }
 
-// 独自変数の定義
-ext{
-    // テスト呼出し元のGradleプロジェクト名
-    invokerGradleProject = 'TomcatProjectGradle'
-}
-
 // $buildDirを変更。こうすることで、テスト対象プロジェクト内に「{ProjectDir}/build」フォルダが生成されることがなくなる。
 // また、gradlew cleanコマンドでbuildフォルダが正常に削除されるようになる。
 buildDir = "${rootProject.buildDir}"
