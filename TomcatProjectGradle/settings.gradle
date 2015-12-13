@@ -1,0 +1,6 @@
+// ルートプロジェクトの名前を定義
+rootProject.name = 'TomcatProjectGradle'
+
+// 外部プロジェクトのINCLUDE設定
+include ':targetProject'
+project(':targetProject').projectDir = new File(rootProject.projectDir, '../TomcatProject')

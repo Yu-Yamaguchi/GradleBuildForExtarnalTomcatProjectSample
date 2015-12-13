@@ -1,0 +1,78 @@
+/*
+ 使用技術に制限があり、Eclipse Tomcatプロジェクトで構築されたWebアプリケーションに対し、
+ 可能な限りTomcatプロジェクト内にファイルを追加することなく、外部からGradleによってビルドを行い、
+ その結果をレポート出力するサンプルです。
+*/
+apply plugin: 'war'
+apply plugin: 'groovy'
+apply plugin: 'findbugs'
+
+// Javaのバージョンを指定
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+repositories {
+    jcenter()
+}
+
+// 独自変数の定義
+ext{
+    // テスト呼出し元のGradleプロジェクト名
+    invokerGradleProject = 'TomcatProjectGradle'
+}
+
+// $buildDirを変更。こうすることで、テスト対象プロジェクト内に「{ProjectDir}/build」フォルダが生成されることがなくなる。
+buildDir = '../' + invokerGradleProject + '/build'
+
+dependencies {
+    // テスト対象のプロジェクトは Eclipseの機能 新規＞プロジェクト＞Tomcatプロジェクトで作成されたプロジェクトのため、
+    // WEB-INF/lib配下に含まれないTomcatの依存関係を追加する必要がありました。
+    compile 'org.apache.tomcat:tomcat-servlet-api:8.0.30'
+
+    // 対象プロジェクト内のlibを設定(ビルド時に使用）
+    compile fileTree(dir: 'WEB-INF/lib', include: '*.jar')
+    testCompile fileTree(dir: 'WEB-INF/lib', include: '*.jar')
+}
+
+// Tomcatプロジェクトの構成に合わせてsourceSetsを定義
+sourceSets {
+    main {
+        java { srcDir 'WEB-INF/src' }
+        resources { srcDir 'WEB-INF/resources' }
+    }
+    test {
+        java {srcDir 'WEB-INF/test/java' }
+        resources { srcDir 'WEB-INF/test/resources' }
+    }
+}
+
+// 文字エンコーディングの設定
+def defaultEncoding = 'UTF-8'
+tasks.withType(AbstractCompile).each { it.options.encoding = defaultEncoding }
+tasks.withType(GroovyCompile).each { it.groovyOptions.encoding = defaultEncoding }
+
+/****** findbugsの設定 ******/
+// レポートの出力形式をHTMLに変更
+tasks.withType(FindBugs) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
+
+// findbugsのその他設定
+findbugs {
+    sourceSets = [sourceSets.main]
+    ignoreFailures = true
+    reportsDir = file("$buildDir/reports/findbugs")
+    effort = "max"
+    reportLevel = "high"
+}
+
+// テストクラスでは、@SuiteClassesを指定して、まとめてテストを実行可能としています。
+// そのため、全クラスのテスト実行ではなく、特定のTest Suiteのみを実行するよう自作のタスクを作成します。
+task testAllTests(type: Test) {
+    include '**/AllTests.class'
+    reports.junitXml.destination "$buildDir/test-results/AllTests"
+    reports.html.destination = "$buildDir/reports/AllTests"
+}
