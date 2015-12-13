@@ -13,6 +13,13 @@ Gradleプロジェクトにはしちゃいけないんです。
 
 > - TomcatProject内部にテストコードを書かずに、TomcatProjectGradle側にテストコードを記述することができたかもしれない。（今回のケースでは、テストコードをTomcatProject内に作成することが制約上OKだったので上記構成となっている。）
 
+###List
+
+* 外部に設置されたプロジェクトに対するBuild
+* JUnitの結果レポート出力
+* FindBugsのレポート出力（HTML対応）
+* jacocoによるカバレッジレポート出力（HTML対応）
+
 ## Usage
 
 - コマンドプロンプトからカレントディレクトリをTomcatProjectGradleに変更。
@@ -22,6 +29,9 @@ Gradleプロジェクトにはしちゃいけないんです。
  これだけです。
  TomcatProjectにはbuildディレクトリなど生成されず、TomcatProjectGradle内にbuildディレクトリが生成され、JUnitやFindbugsのレポートが出力されていると思います。
 
+##LISENCE
+
+MIT
 
 ## Author
 [Yu-Yamaguchi](https://github.com/Yu-Yamaguchi)
