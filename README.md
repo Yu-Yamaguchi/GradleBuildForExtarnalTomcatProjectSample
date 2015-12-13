@@ -22,12 +22,21 @@ Gradleプロジェクトにはしちゃいけないんです。
 
 ## Usage
 
-- コマンドプロンプトからカレントディレクトリをTomcatProjectGradleに変更。
-- 以下のコマンドを実行
- - `gradlew testAllTests`
+> コマンドプロンプトからカレントディレクトリをTomcatProjectGradleに変更して実行してください。
+>
+> 指定したテストスィートのJUnitを実行する。
+> > `gradlew testAllTests`
+>
+> FindBugsを実行する。
+> > `gradlew findbugsTest`
+>
+> Checkstyleを実行する→実行後にCheckstyleのレポートを出力する。
+> > `gradlew check`
+> > `gradlew checkstyleReport`
+>
+> jacocoによるカバレッジレポートを出力する。
+> > `gradlew jacoco`
  
- これだけです。
- TomcatProjectにはbuildディレクトリなど生成されず、TomcatProjectGradle内にbuildディレクトリが生成され、JUnitやFindbugsのレポートが出力されていると思います。
 
 ##LISENCE
 

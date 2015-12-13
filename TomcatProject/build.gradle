@@ -8,6 +8,7 @@ apply plugin: 'war'
 apply plugin: 'groovy'
 apply plugin: 'findbugs'
 apply plugin: 'jacoco'
+apply plugin: 'checkstyle'
 
 // Javaのバージョンを指定
 sourceCompatibility = '1.8'
@@ -29,7 +30,9 @@ ext{
 }
 
 // $buildDirを変更。こうすることで、テスト対象プロジェクト内に「{ProjectDir}/build」フォルダが生成されることがなくなる。
-buildDir = '../' + invokerGradleProject + '/build'
+// また、gradlew cleanコマンドでbuildフォルダが正常に削除されるようになる。
+buildDir = "${rootProject.buildDir}"
+
 
 dependencies {
     // テスト対象のプロジェクトは Eclipseの機能 新規＞プロジェクト＞Tomcatプロジェクトで作成されたプロジェクトのため、
@@ -39,6 +42,9 @@ dependencies {
     // 対象プロジェクト内のlibを設定(ビルド時に使用）
     compile fileTree(dir: 'WEB-INF/lib', include: '*.jar')
     testCompile fileTree(dir: 'WEB-INF/lib', include: '*.jar')
+
+    // 最新のGoogleが提供しているcheckstyleの定義に対応するため、以下の依存関係を追加。
+    checkstyle "com.puppycrawl.tools:checkstyle:6.13"
 }
 
 // Tomcatプロジェクトの構成に合わせてsourceSetsを定義
@@ -111,5 +117,33 @@ task jacoco(type: JacocoReport, dependsOn: 'testAllTests') {
         html.enabled = true
         xml.enabled = false
         csv.enabled = false
+    }
+}
+
+
+// mainソースに対するcheckstyleの設定
+checkstyleMain {
+    checkstyleMain.configFile = file('WEB-INF/config/checkstyle.xml')
+    // ディレクトリ設定値の確認
+    println "buildDir : ${buildDir}"
+    println "rootProject.buildDir : ${rootProject.buildDir}"
+    checkstyleMain.reports.xml.destination = "$buildDir/reports/checkstyle/main.xml"
+}
+
+// testソースに対するcheckstyleの設定（テストは対象外とする）
+checkstyleTest {
+  checkstyleTest.configFile = file('WEB-INF/config/checkstyle.xml')
+  excludes = ['**/*']
+}
+
+// checkstyleの結果xmlからHTMLのレポートを出力するタスクの定義
+task checkstyleReport << {
+    if (file("$buildDir/reports/checkstyle/main.xml").exists()) {
+        ant.xslt(in: "$buildDir/reports/checkstyle/main.xml",
+            style:"${rootProject.rootDir}/config/checkstyle-noframes-sorted.xsl",
+            out:"$buildDir/reports/checkstyle/checkstyle.html"
+        )
+    } else {
+        println("先に gradlew check を実行してください＞＜")
     }
 }
