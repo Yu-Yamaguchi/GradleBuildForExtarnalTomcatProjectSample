@@ -2,5 +2,6 @@
 rootProject.name = 'TomcatProjectGradle'
 
 // 外部プロジェクトのINCLUDE設定
-include ':targetProject'
+// フラットタイプのマルチプロジェクトとして定義
+includeFlat 'targetProject'
 project(':targetProject').projectDir = new File(rootProject.projectDir, '../TomcatProject')

@@ -1,1 +1,146 @@
-// ���[�g�v���W�F�N�g�ɂ͓��ɃR�[�h��z�u���Ȃ����߉����L�q���Ȃ��B
+/*
+ 使用技術に制限があり、Eclipse Tomcatプロジェクトで構築されたWebアプリケーションに対し、
+ 可能な限りTomcatプロジェクト内にファイルを追加することなく、外部からGradleによってビルドを行い、
+ その結果をレポート出力するサンプルです。
+*/
+apply plugin: "java"
+apply plugin: "war"
+apply plugin: "groovy"
+apply plugin: "findbugs"
+apply plugin: "jacoco"
+apply plugin: "checkstyle"
+
+// Javaのバージョンを指定
+sourceCompatibility = "1.8"
+targetCompatibility = "1.8"
+
+// 文字エンコーディングの設定
+def defaultEncoding = "UTF-8"
+tasks.withType(AbstractCompile).each { it.options.encoding = defaultEncoding }
+tasks.withType(GroovyCompile).each { it.groovyOptions.encoding = defaultEncoding }
+
+// 内部で利用する変数の定義【テスト対象プロジェクトに応じてここを修正】
+def targetProjectDir = "../TomcatProject"
+
+
+// 使用するリポジトリの指定
+repositories {
+    mavenCentral()
+}
+
+// $buildDirを変更。こうすることで、テスト対象プロジェクト内に「{ProjectDir}/build」フォルダが生成されることがなくなる。
+// また、gradlew cleanコマンドでbuildフォルダが正常に削除されるようになる。
+buildDir = "${rootProject.buildDir}"
+
+
+dependencies {
+    // テスト対象のプロジェクトは Eclipseの機能 新規＞プロジェクト＞Tomcatプロジェクトで作成されたプロジェクトのため、
+    // WEB-INF/lib配下に含まれないTomcatの依存関係を追加する必要がありました。
+    compile "org.apache.tomcat:tomcat-servlet-api:8.0.30"
+
+    // 対象プロジェクト内のlibを設定(ビルド時に使用）
+    compile fileTree(dir: "$targetProjectDir/WEB-INF/lib", include: "*.jar")
+    testCompile fileTree(dir: "$targetProjectDir/WEB-INF/lib", include: "*.jar")
+
+    // 最新のGoogleが提供しているcheckstyleの定義に対応するため、以下の依存関係を追加。
+    checkstyle "com.puppycrawl.tools:checkstyle:6.13"
+}
+
+// Tomcatプロジェクトの構成に合わせてsourceSetsを定義
+sourceSets {
+    main {
+        java { srcDir "$targetProjectDir/WEB-INF/src" }
+        resources { srcDir "$targetProjectDir/WEB-INF/resources" }
+    }
+    test {
+        java {srcDir "$targetProjectDir/WEB-INF/test/java" }
+        resources { srcDir "$targetProjectDir/WEB-INF/test/resources" }
+    }
+}
+
+/****** findbugsの設定 ******/
+// レポートの出力形式をHTMLに変更
+tasks.withType(FindBugs) {
+    reports {
+        xml.enabled = false
+        html.enabled = true
+    }
+}
+
+// findbugsのその他設定
+findbugs {
+    sourceSets = [sourceSets.main]
+    ignoreFailures = true
+    reportsDir = file("$buildDir/reports/findbugs")
+    effort = "max"
+    reportLevel = "high"
+}
+
+/****** 自作のタスク ******/
+// テストクラスでは、@SuiteClassesを指定して、まとめてテストを実行可能としています。
+// そのため、全クラスのテスト実行ではなく、特定のTest Suiteのみを実行するよう自作のタスクを作成します。
+task testAllTests(type: Test) {
+    include "**/AllTests.class"
+    reports.junitXml.destination "$buildDir/test-results/testAllTests"
+    reports.html.destination = "$buildDir/reports/testAllTests"
+}
+
+/****** jacocoによるカバレッジレポート出力の設定 ******/
+// jacocoの設定
+jacoco {
+    toolVersion = "0.7.+"
+    reportsDir = file("$buildDir/reports/jacoco")
+}
+
+// jacocoタスクが実行された際、先行タスクとしてtestAllTestsが実行されるよう設定。
+task jacoco(type: JacocoReport, dependsOn: "testAllTests") {
+    /*
+     jacocoのカバレッジレポート出力に必要な「***.exec」ファイルは、
+     デフォルトのままだと「test.exec」という名前のファイルとなり、
+     dependsOnで指定したタスクが「test」以外の場合、タスク名＋.execファイルが生成されるため、
+     jacocoのカバレッジレポートが出力されない。
+     
+     この例だと「testAllTests.exec」ファイルができてしまう。
+     そのため、executionDataを以下のようにセットする。
+     ※さらに、executionDataはFileオブジェクトではなくFileCollectionオブジェクトのため、
+     　filesでパスを指定する。
+    */
+    executionData = files("$buildDir/jacoco/testAllTests.exec")
+
+    sourceSets sourceSets.main
+    
+    // HTMLのレポートのみ出力
+    reports {
+        html.enabled = true
+        xml.enabled = false
+        csv.enabled = false
+    }
+}
+
+
+// mainソースに対するcheckstyleの設定
+checkstyleMain {
+    checkstyleMain.configFile = file("$targetProjectDir/WEB-INF/config/checkstyle.xml")
+    // ディレクトリ設定値の確認
+    println "buildDir : ${buildDir}"
+    println "rootProject.buildDir : ${rootProject.buildDir}"
+    checkstyleMain.reports.xml.destination = "$buildDir/reports/checkstyle/main.xml"
+}
+
+// testソースに対するcheckstyleの設定（テストは対象外とする）
+checkstyleTest {
+  checkstyleTest.configFile = file("$targetProjectDir/WEB-INF/config/checkstyle.xml")
+  excludes = ["**/*"]
+}
+
+// checkstyleの結果xmlからHTMLのレポートを出力するタスクの定義
+task checkstyleReport << {
+    if (file("$buildDir/reports/checkstyle/main.xml").exists()) {
+        ant.xslt(in: "$buildDir/reports/checkstyle/main.xml",
+            style:"${rootProject.rootDir}/config/checkstyle-noframes-sorted.xsl",
+            out:"$buildDir/reports/checkstyle/checkstyle.html"
+        )
+    } else {
+        println("先に gradlew check を実行してください＞＜")
+    }
+}
