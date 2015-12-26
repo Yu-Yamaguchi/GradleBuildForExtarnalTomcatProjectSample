@@ -136,7 +136,7 @@ project(":targetProject") {
 	}
 
 	// checkstyleの結果xmlからHTMLのレポートを出力するタスクの定義
-	task checkstyleReport << {
+	task checkstyleReport(dependsOn:"check") << {
 	    if (file("$buildDir/reports/checkstyle/main.xml").exists()) {
 	        ant.xslt(in: "$buildDir/reports/checkstyle/main.xml",
 	            style:"${rootProject.rootDir}/config/checkstyle-noframes-sorted.xsl",
@@ -169,24 +169,20 @@ project(":targetProject") {
      * CI用のタスクです。
      * 依存関係としてcleanとcheckを依存関係に指定していますが、
      * 実際には以下のタスクが実行されます。
-     * ・clean … 全てのタスク実行前にクリーンする。
      * ・findbugs … findbugsはcheckタスクの依存関係に標準でセットされているため、check実行時に、先行して実行される。
      * ・testAll … check.dependsOn += testAllで依存関係をセットしているため、check実行時に、先行して実行される。
      * ・check … checkstyleの実行
      * ・checkstyleReport … check実行結果のxmlからHTMLのレポートを出力
      * ・jacoco … jacocoによるコードカバレッジレポートをHTML形式で出力
      */
-	task ci(dependsOn: ['clean', 'check', 'checkstyleReport', 'jacoco']) {
+	task ci(dependsOn: ['checkstyleReport', 'jacoco']) {
 		description = "JenkinsにのせてCIやりたいときなどに使う独自タスクの定義です。" + System.properties['line.separator'] +
 						"      このciタスクでは以下の処理を行います。" + System.properties['line.separator'] +
-						"      ・clean" + System.properties['line.separator'] +
 						"      ・findbugs" + System.properties['line.separator'] +
 						"      ・testAll … 独自定義の全テスト実行タスク（Test Suiteを指定したテストの実行）" + System.properties['line.separator'] +
 						"      ・check … checkstyleの実行" + System.properties['line.separator'] +
 						"      ・checkstyleReport … check実行結果のxmlからHTMLのレポートを出力" + System.properties['line.separator'] +
 						"      ・jacoco … jacocoによるコードカバレッジレポートをHTML形式で出力"
 
-		check.mustRunAfter clean
-		checkstyleReport.mustRunAfter check
 	}
 }
