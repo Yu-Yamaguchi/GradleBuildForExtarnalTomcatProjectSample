@@ -25,6 +25,16 @@ Gradleプロジェクトにはしちゃいけないんです＞＜
 
 > コマンドプロンプトからカレントディレクトリをTomcatProjectGradleに変更して実行してください。
 >
+> CI用に全てのタスクを適切な順序で実行する。
+> > `gradlew ci`
+> > このタスクでは、以下のタスクが順番に全て実行されます。
+> > * clean … 全てのタスク実行前にクリーンする。
+> > * findbugs … findbugsはcheckタスクの依存関係に標準でセットされているため、check実行時に、先行して実行される。
+> > * testAll … check.dependsOn += testAllで依存関係をセットしているため、check実行時に、先行して実行される。
+> > * check … checkstyleの実行
+> > * checkstyleReport … check実行結果のxmlからHTMLのレポートを出力
+> > * jacoco … jacocoによるコードカバレッジレポートをHTML形式で出力
+>
 > 指定したテストスィートのJUnitを実行する。
 > > `gradlew testAllTests`
 >
